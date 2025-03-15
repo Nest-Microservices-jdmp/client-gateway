@@ -10,7 +10,7 @@ import {
   Patch,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { ORDER_SERVICE } from 'src/config';
+import { NATS_SERVICE } from 'src/config';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { catchError, Observable } from 'rxjs';
 import { PaginationDto, PaginationStatusDto } from 'src/common';
@@ -19,14 +19,12 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    @Inject(ORDER_SERVICE) private readonly orderClient: ClientProxy,
-  ) {}
+  constructor(@Inject(NATS_SERVICE) private readonly client: ClientProxy) {}
 
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
     console.log(createOrderDto);
-    return this.orderClient.send({ cmd: 'create_order' }, createOrderDto).pipe(
+    return this.client.send({ cmd: 'create_order' }, createOrderDto).pipe(
       catchError((err) => {
         throw new RpcException(err);
       }),
@@ -40,7 +38,7 @@ export class OrdersController {
   ): Observable<any> {
     console.log(`Updating order ${id} to status ${status}`);
 
-    return this.orderClient
+    return this.client
       .send({ cmd: 'change_order_status' }, { id, status })
       .pipe(
         catchError((err) => {
@@ -51,12 +49,12 @@ export class OrdersController {
 
   @Get()
   findOrders(@Query() paginationDto: PaginationStatusDto) {
-    return this.orderClient.send({ cmd: 'find_orders' }, paginationDto);
+    return this.client.send({ cmd: 'find_orders' }, paginationDto);
   }
 
   @Get('id/:id')
   findOneOrderById(@Param('id', ParseUUIDPipe) id: string): Observable<any> {
-    return this.orderClient.send({ cmd: 'find_one' }, id).pipe(
+    return this.client.send({ cmd: 'find_one' }, id).pipe(
       catchError((err) => {
         throw new RpcException(err);
       }),
@@ -67,7 +65,7 @@ export class OrdersController {
     @Param('status') status: OrderStatus,
     @Query() paginationDto: PaginationDto,
   ): Observable<any> {
-    return this.orderClient
+    return this.client
       .send({ cmd: 'find_status' }, { status, ...paginationDto })
       .pipe(
         catchError((err) => {
