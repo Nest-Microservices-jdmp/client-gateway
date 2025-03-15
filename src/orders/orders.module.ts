@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { envs, ORDER_SERVICE } from 'src/config';
@@ -18,6 +17,6 @@ import { envs, ORDER_SERVICE } from 'src/config';
       },
     ]),
   ],
-  providers: [OrdersService],
+  providers: [],
 })
 export class OrdersModule {}
