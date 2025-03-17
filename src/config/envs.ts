@@ -16,7 +16,9 @@ const envSchema = joi
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const { error, value } = envSchema.validate({
   ...process.env,
-  NATS_SERVERS: process.env.NATS_SERVERS?.split(','),
+  NATS_SERVERS: process.env.NATS_SERVERS
+    ? process.env.NATS_SERVERS.split(',')
+    : null,
 });
 
 if (error) {

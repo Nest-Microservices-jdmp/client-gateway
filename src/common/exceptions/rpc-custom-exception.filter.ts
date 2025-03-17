@@ -13,20 +13,44 @@ interface RpcError {
   error?: string;
 }
 
-@Catch(RpcException)
+@Catch(Error) // Captura cualquier tipo de error
 export class RpcCustomExceptionFilter implements ExceptionFilter {
-  catch(exception: RpcException, host: ArgumentsHost): void {
+  catch(exception: Error, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
-    const rpcError = exception.getError() as RpcError | string;
+    if (exception instanceof RpcException) {
+      const rpcError = exception.getError() as RpcError | string;
 
-    if (this.isRpcError(rpcError)) {
-      const status = rpcError.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
-      response.status(status).json(rpcError);
+      if (this.isRpcError(rpcError)) {
+        const status = rpcError.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+        response.status(status).json(rpcError);
+        return;
+      }
+
+      response.status(HttpStatus.BAD_REQUEST).json(rpcError);
+      return;
     }
 
-    response.status(HttpStatus.BAD_REQUEST).json(rpcError);
+    if (
+      exception.message.includes('No subscribers') ||
+      exception.message.includes('Connection refused') ||
+      exception.message.includes('timeout')
+    ) {
+      console.error(`🔴 Microservice unavailable: ${exception.message}`);
+      response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Service is currently unavailable. Please try again later.',
+      });
+      return;
+    }
+
+    console.error(`Unhandled error: ${exception.message}`);
+
+    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      message: 'There are no subscribers listening to that message',
+    });
   }
 
   private isRpcError(error: unknown): error is RpcError {

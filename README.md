@@ -87,8 +87,13 @@ Check out a few resources that may come in handy when working with NestJS:
 
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-## NATS
-`docker run -d --name nats-main -p 4222:4222 -p 6222:6222 -p 8222:8222 nats`
+
+1. Clone the repository  
+2. Install dependencies  
+3. Create a `.env` file based on the `env.template`  
+4. Run Prisma migration using `npx prisma migrate dev`  
+5. Start the project using `npm run start:dev`  
+6. run nat server `docker run -d --name nats-main -p 4222:4222 -p 6222:6222 -p 8222:8222 nats`
 
 
 ## License
