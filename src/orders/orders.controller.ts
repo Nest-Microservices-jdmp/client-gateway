@@ -23,7 +23,6 @@ export class OrdersController {
 
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
-    console.log(createOrderDto);
     return this.client.send({ cmd: 'create_order' }, createOrderDto).pipe(
       catchError((err) => {
         throw new RpcException(err);
@@ -36,8 +35,6 @@ export class OrdersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() { status }: UpdateOrderStatusDto,
   ): Observable<any> {
-    console.log(`Updating order ${id} to status ${status}`);
-
     return this.client
       .send({ cmd: 'change_order_status' }, { id, status })
       .pipe(
