@@ -3,6 +3,9 @@ import {
   ArgumentsHost,
   ExceptionFilter,
   HttpStatus,
+  BadRequestException,
+  Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { Response } from 'express';
@@ -13,31 +16,27 @@ interface RpcError {
   error?: string;
 }
 
-@Catch(Error) // Captura cualquier tipo de error
+@Catch(Error)
 export class RpcCustomExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(RpcCustomExceptionFilter.name);
+
   catch(exception: Error, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
-    if (exception instanceof RpcException) {
-      const rpcError = exception.getError() as RpcError | string;
+    this.logger.error(`Error caught: ${exception.message}`, exception.stack);
 
-      if (this.isRpcError(rpcError)) {
-        const status = rpcError.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
-        response.status(status).json(rpcError);
-        return;
-      }
-
-      response.status(HttpStatus.BAD_REQUEST).json(rpcError);
+    // Handling UnauthorizedException
+    if (exception instanceof UnauthorizedException) {
+      response.status(HttpStatus.UNAUTHORIZED).json({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        message: exception.message || 'Unauthorized',
+      });
       return;
     }
 
-    if (
-      exception.message.includes('No subscribers') ||
-      exception.message.includes('Connection refused') ||
-      exception.message.includes('timeout')
-    ) {
-      console.error(`🔴 Microservice unavailable: ${exception.message}`);
+    // Handling NATS Transport Errors
+    if (exception.message.includes('Empty response')) {
       response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
         statusCode: HttpStatus.SERVICE_UNAVAILABLE,
         message: 'Service is currently unavailable. Please try again later.',
@@ -45,14 +44,44 @@ export class RpcCustomExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    console.error(`Unhandled error: ${exception.message}`);
+    // Handling validation errors(BadRequestException)
+    if (exception instanceof BadRequestException) {
+      const errorResponse = exception.getResponse();
+      response.status(HttpStatus.BAD_REQUEST).json(errorResponse);
+      return;
+    }
 
+    if (exception instanceof RpcException) {
+      const rpcError = exception.getError() as RpcError | string;
+
+      if (typeof rpcError === 'string') {
+        if (rpcError.includes('Empty response')) {
+          response.status(HttpStatus.SERVICE_UNAVAILABLE).json({
+            statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+            message:
+              'Service is currently unavailable. Please try again later.',
+          });
+          return;
+        }
+        response.status(HttpStatus.BAD_REQUEST).json({ message: rpcError });
+        return;
+      }
+
+      if (this.isRpcError(rpcError)) {
+        const status = rpcError.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+        response.status(status).json(rpcError);
+        return;
+      }
+    }
+
+    // Handling unhandled errors
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'There are no subscribers listening to that message',
+      message: 'Internal server error',
     });
   }
 
+  // Check if the error is of type RpcError
   private isRpcError(error: unknown): error is RpcError {
     return (
       typeof error === 'object' &&
