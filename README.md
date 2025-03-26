@@ -95,6 +95,9 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 5. Start the project using `npm run start:dev`  
 6. run nat server `docker run -d --name nats-main -p 4222:4222 -p 6222:6222 -p 8222:8222 nats`
 
+## Prod
+docker build -f dockerfile.prod -t client-gateway .
+
 
 ## License
 
